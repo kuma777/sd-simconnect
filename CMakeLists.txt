@@ -11,6 +11,7 @@ include_directories(
     lib
     lib/glfw/include
     lib/imgui
+    lib/json/include
 )
 
 link_directories(
@@ -26,6 +27,8 @@ add_library(imgui
     lib/imgui/imgui.cpp
 )
 
-add_executable(sd-simconnect WIN32 main.cpp)
+add_definitions("/std:c++20")
 
-target_link_libraries(sd-simconnect opengl32 glfw imgui Websocket SimConnect)
+add_executable(sd-simconnect main.cpp)
+
+target_link_libraries(sd-simconnect opengl32 glfw imgui WinHTTP SimConnect)

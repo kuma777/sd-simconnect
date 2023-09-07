@@ -5,21 +5,58 @@
 #include <imgui/backends/imgui_impl_opengl3.h>
 
 #include <Windows.h>
-#include <websocket.h>
-
-#include <SimConnect.h>
 
 #include "logger.hpp"
+#include "simconnect.hpp"
+#include "streamdeck.hpp"
 
-int WINAPI
-WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
+int HandleError()
 {
-    if (!glfwInit())
-        return -1;
+    LOG_EXPORT_END();
+    return -1;
+}
 
-    auto window = glfwCreateWindow(800, 600, "sd-mcp", nullptr, nullptr);
+int
+main(int argc, const char* argv[])
+{
+    LOG_EXPORT_BEGIN("./simconnect.log");
+
+    int port = 0;
+    std::string pluginUUID;
+    std::string registerEvent;
+    std::string info;
+
+    for (int i = 1; i < argc; ++i)
+    {
+        std::string key(argv[i]);
+        if (key == "-port")
+        {
+            port = std::atoi(argv[i + 1]);
+        }
+        else if (key == "-pluginUUID")
+        {
+            pluginUUID.assign(argv[i + 1]);
+        }
+        else if (key == "-registerEvent")
+        {
+            registerEvent.assign(argv[i + 1]);
+        }
+        else if (key == "-info")
+        {
+            info.assign(argv[i + 1]);
+        }
+    }
+
+    if (!glfwInit())
+    {
+        return HandleError();
+    }
+
+    auto window = glfwCreateWindow(800, 600, "sd-simconnect", nullptr, nullptr);
     if (!window)
-        return -1;
+    {
+        return HandleError();
+    }
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
@@ -30,22 +67,17 @@ WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
 	ImGui_ImplOpenGL3_Init("#version 130");
 
-    HRESULT result;
-
-    WEB_SOCKET_HANDLE socket;
-    result = WebSocketCreateClientHandle(nullptr, 0, &socket);
-
-    if (result != S_OK)
+    StreamDeck deck(port, registerEvent, pluginUUID);
+    if (!deck.start())
     {
-        LOG_ERROR("Failed to create WebSocket client.");
+        LOG_ERROR("Failed to start connection to StreamDeck.");
+        return HandleError();
     }
 
-    HANDLE sim;
-    result = SimConnect_Open(&sim, "sd-mcp", NULL, 0, 0, SIMCONNECT_OPEN_CONFIGINDEX_LOCAL);
-
-    if (result != S_OK)
+    SimConnect sim;
+    if (!sim.start())
     {
-        LOG_ERROR("Failed to create SimConnect handle.");
+        LOG_ERROR("Failed to start SimConnect.");
     }
 
     const ImColor White(ImVec4(1.0, 1.0, 1.0, 1.0));
@@ -62,15 +94,17 @@ WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
     {
         glfwPollEvents();
 
+        sim.poll();
+
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::Button("Test");
-
 #ifndef NDEBUG
         ImGui::Begin("Log");
         {
+            ImGui::SetWindowPos({ 10, 10 });
+            ImGui::SetWindowSize({ 600, 400 });
             for (auto& message : Logger::Instance().getHistory())
             {
                 switch (message.first)
@@ -106,6 +140,10 @@ WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
     glfwDestroyWindow(window);
     glfwTerminate();
+
+    deck.finalize();
+
+    LOG_EXPORT_END();
 
     return 0;
 }

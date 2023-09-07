@@ -1,0 +1,31 @@
+{
+    "Actions": [
+        {
+            "Controllers": ["Keypad"],
+            "Icon": "assets/flight_white_24dp",
+            "Name": "Flight",
+            "States": [
+                {
+                    "Image": "assets/flight_white_24dp"
+                }
+            ],
+            "UUID": "net.kuma777.simconnect.sdPlugin.flight"
+        }
+    ],
+    "Author": "Yu Kumazaki",
+    "CodePath": "bin/sd-simconnect.exe",
+    "Description": "SimConnect plugin for Microsoft Flight Simulator.",
+    "Icon": "assets/flight_white_24dp",
+    "Name": "SimConnect",
+    "OS": [
+        {
+            "Platform": "windows",
+            "MinimumVersion": "10"
+        }
+    ],
+    "SDKVersion": 2,
+    "Software": {
+        "MinimumVersion": "5.0"
+    },
+    "Version": "0.0.1"
+}
