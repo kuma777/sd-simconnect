@@ -12,6 +12,14 @@ void OnSocketCallback(HINTERNET handle, DWORD_PTR context, DWORD status, LPVOID 
 
 class StreamDeck
 {
+public:
+    enum {
+        INVALID,
+        ACTION_SPEED,
+        ACTION_HEADING,
+        ACTION_ALTITUDE,
+    };
+
 private:
     HINTERNET session_{ nullptr };
     HINTERNET connection_{ nullptr };
@@ -22,7 +30,11 @@ private:
     std::string registerEvent_;
     std::string pluginUUID_;
     
-    char8_t buffer_[2048];
+    char buffer_[2048];
+    std::string payload_;
+
+    std::map<DWORD, std::string> context_;
+    std::map<DWORD, int> tick_;
 
 public:
     StreamDeck(int port, const std::string& registerEvent, const std::string& pluginUUID)
@@ -104,8 +116,33 @@ public:
         return true;
     }
 
-    void send(const nlohmann::json& root)
+    int getTick(DWORD id)
     {
+        auto it = tick_.find(id);
+        if (it == tick_.end())
+        {
+            return 0;
+        }
+
+        int v = it->second;
+
+        // Consume.
+        tick_[id] = 0;;
+
+        return v;
+    }
+
+    bool send(DWORD id, nlohmann::json& root)
+    {
+        auto it = context_.find(id);
+        if (it == context_.end())
+        {
+            LOG_ERROR("No matching context was found. Abort sending message.");
+            return false;
+        }
+
+        root["context"] = it->second;
+
         std::string buffer = root.dump();
 
         LOG_DEBUG("-> %s", buffer.c_str());
@@ -114,8 +151,10 @@ public:
         if (result != NO_ERROR)
         {
             LOG_ERROR("Failed to send message. %d", result);
-            return;
+            return false;
         }
+
+        return true;
     }
 
     void onRequestCallback(DWORD status, LPVOID info, DWORD infoLength)
@@ -213,11 +252,71 @@ public:
 
             LOG_DEBUG("%d bytes received. %d", ss->dwBytesTransferred, ss->eBufferType);
 
-            if (ss->eBufferType == WINHTTP_WEB_SOCKET_UTF8_FRAGMENT_BUFFER_TYPE ||
-                ss->eBufferType == WINHTTP_WEB_SOCKET_UTF8_MESSAGE_BUFFER_TYPE)
+            if (ss->eBufferType == WINHTTP_WEB_SOCKET_UTF8_FRAGMENT_BUFFER_TYPE)
             {
-                std::u8string buffer(buffer_, ss->dwBytesTransferred);
-                LOG_DEBUG("<- %s", buffer.c_str());
+                payload_ += std::string(buffer_, ss->dwBytesTransferred);
+
+                LOG_DEBUG("Fragment received. %d", payload_.size());
+            }
+            else if (ss->eBufferType == WINHTTP_WEB_SOCKET_UTF8_MESSAGE_BUFFER_TYPE)
+            {
+                payload_ += std::string(buffer_, ss->dwBytesTransferred);
+
+                LOG_DEBUG("<- %s", payload_.c_str());
+
+                nlohmann::json root = nlohmann::json::parse(payload_);
+
+                if (root.find("event") != root.end())
+                {
+                    auto event = root["event"].get<std::string>();
+                    if (event == "willAppear")
+                    {
+                        auto action = root["action"].get<std::string>();
+                        if (action == "net.kuma777.simconnect.sdplugin.speed")
+                        {
+                            context_.emplace(ACTION_SPEED, root["context"].get<std::string>());
+                        }
+                        else if (action == "net.kuma777.simconnect.sdplugin.heading")
+                        {
+                            context_.emplace(ACTION_HEADING, root["context"].get<std::string>());
+                        }
+                        else if (action == "net.kuma777.simconnect.sdplugin.altitude")
+                        {
+                            context_.emplace(ACTION_ALTITUDE, root["context"].get<std::string>());
+                        }
+                    }
+                    else if (event == "dialRotate")
+                    {
+                        DWORD id = INVALID;
+
+                        auto action = root["action"].get<std::string>();
+                        if (action == "net.kuma777.simconnect.sdplugin.speed")
+                        {
+                            id = ACTION_SPEED;
+                        }
+                        else if (action == "net.kuma777.simconnect.sdplugin.heading")
+                        {
+                            id = ACTION_HEADING;
+                        }
+                        else if (action == "net.kuma777.simconnect.sdplugin.altitude")
+                        {
+                            id = ACTION_ALTITUDE;
+                        }
+
+                        if (id != INVALID)
+                        {
+                            auto it = tick_.find(id);
+                            if (it == tick_.end())
+                            {
+                                tick_.emplace(id, 0);
+                            }
+
+                            tick_[id] += root["payload"]["ticks"].get<int>();
+                        }
+                    }
+                }
+
+                payload_.clear();
             }
 
             WinHttpWebSocketReceive(socket_, (void*)buffer_, sizeof(buffer_), nullptr, nullptr);

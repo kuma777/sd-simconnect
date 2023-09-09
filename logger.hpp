@@ -93,7 +93,7 @@ public:
 
 		std::lock_guard<std::mutex> lock(mutex_);
 
-		char buffer[256];
+		char buffer[1024];
 		std::snprintf(buffer, sizeof(buffer), format, args...);
 
 		history_.emplace_front(1, buffer);

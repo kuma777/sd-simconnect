@@ -10,6 +10,96 @@
                 }
             ],
             "UUID": "net.kuma777.simconnect.sdPlugin.flight"
+        },
+        {
+            "Controllers": ["Encoder"],
+            "Encoder": {
+                "layout": {
+                    "id": "net.kuma777.simconnect.sdPlugin.speed.layout",
+                    "items": [
+                        {
+                            "key": "title",
+                            "type": "text",
+                            "rect": [10, 10, 180, 30],
+                            "font": { "size": 24, "weight": 600 }
+                        },
+                        {
+                            "key": "value",
+                            "type": "text",
+                            "rect": [10, 50, 180, 30],
+                            "font": { "size": 24, "weight": 600 }
+                        }
+                    ]
+                }
+            },
+            "Icon": "assets/speed_white_24dp",
+            "Name": "AP Speed",
+            "States": [
+                {
+                    "Image": "assets/speed_white_24dp"
+                }
+            ],
+            "UUID": "net.kuma777.simconnect.sdPlugin.speed"
+        },
+        {
+            "Controllers": ["Encoder"],
+            "Encoder": {
+                "layout": {
+                    "id": "net.kuma777.simconnect.sdPlugin.heading.layout",
+                    "items": [
+                        {
+                            "key": "title",
+                            "type": "text",
+                            "rect": [10, 10, 180, 30],
+                            "font": { "size": 24, "weight": 600 }
+                        },
+                        {
+                            "key": "value",
+                            "type": "text",
+                            "rect": [10, 50, 180, 30],
+                            "font": { "size": 24, "weight": 600 }
+                        }
+                    ]
+                }
+            },
+            "Icon": "assets/explore_white_24dp",
+            "Name": "AP Heading",
+            "States": [
+                {
+                    "Image": "assets/explore_white_24dp"
+                }
+            ],
+            "UUID": "net.kuma777.simconnect.sdPlugin.heading"
+        },
+        {
+            "Controllers": ["Encoder"],
+            "Encoder": {
+                "layout": {
+                    "id": "net.kuma777.simconnect.sdPlugin.altitude.layout",
+                    "items": [
+                        {
+                            "key": "title",
+                            "type": "text",
+                            "rect": [10, 10, 180, 30],
+                            "font": { "size": 24, "weight": 600 }
+                        },
+                        {
+                            "key": "value",
+                            "type": "text",
+                            "rect": [10, 50, 180, 30],
+                            "font": { "size": 24, "weight": 600 }
+                        }
+                    ]
+                }
+            },
+            "Icon": "assets/landscape_white_24dp",
+            "Name": "AP Altitude",
+            "States": [
+                {
+                    "Image": "assets/landscape_white_24dp"
+                }
+            ],
+            "UUID": "net.kuma777.simconnect.sdPlugin.altitude"
         }
     ],
     "Author": "Yu Kumazaki",

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <map>
+
 #include <Windows.h>
 
 #include <SimConnect.h>
@@ -11,20 +13,23 @@ void OnReceive(SIMCONNECT_RECV* data, DWORD length, void* context);
 class SimConnect
 {
     enum {
-        EVENT_AP_MASTER,
-        EVENT_AP_SPD_VAR_SET,
+        REQ_AP_SPEED,
+        REQ_AP_HEADING,
+        REQ_AP_ALTITUDE,
     };
 
-    enum {
-        DEF_AP_HDG_LCK,
-    };
-
-    enum {
-        REQ_AP_HDG_LCK,
+public:
+    enum
+    {
+        DEF_AP_SPEED_VALUE,
+        DEF_AP_HEADING_VALUE,
+        DEF_AP_ALTITUDE_VALUE,
     };
 
 private:
     HANDLE handle_{ nullptr };
+
+    std::map<SIMCONNECT_DATA_DEFINITION_ID, double> data_;
 
 public:
     SimConnect()
@@ -48,12 +53,11 @@ public:
             return false;
         }
 
-        SimConnect_AddToDataDefinition(handle_, DEF_AP_HDG_LCK, "AUTOPILOT HEADING LOCK DIR", "degrees");
+        SimConnect_AddToDataDefinition(handle_, DEF_AP_HEADING_VALUE, "AUTOPILOT HEADING LOCK DIR", "degrees");
+        SimConnect_AddToDataDefinition(handle_, DEF_AP_ALTITUDE_VALUE, "AUTOPILOT ALTITUDE LOCK VAR", "feet");
 
-        SimConnect_RequestDataOnSimObject(handle_, REQ_AP_HDG_LCK, DEF_AP_HDG_LCK, SIMCONNECT_OBJECT_ID_USER, SIMCONNECT_PERIOD_SECOND);
-
-        SimConnect_MapClientEventToSimEvent(handle_, EVENT_AP_MASTER, "AP_MASTER");
-        SimConnect_MapClientEventToSimEvent(handle_, EVENT_AP_SPD_VAR_SET, "AP_SPD_VAR_SET");
+        SimConnect_RequestDataOnSimObject(handle_, REQ_AP_HEADING, DEF_AP_HEADING_VALUE, SIMCONNECT_OBJECT_ID_USER, SIMCONNECT_PERIOD_VISUAL_FRAME);
+        SimConnect_RequestDataOnSimObject(handle_, REQ_AP_ALTITUDE, DEF_AP_ALTITUDE_VALUE, SIMCONNECT_OBJECT_ID_USER, SIMCONNECT_PERIOD_VISUAL_FRAME);
 
         LOG_DEBUG("SimConnect was successfully started.");
 
@@ -65,18 +69,37 @@ public:
         SimConnect_CallDispatch(handle_, OnReceive, this);
     }
 
+    template <typename T>
+    T get(SIMCONNECT_DATA_DEFINITION_ID id)
+    {
+        auto it = data_.find(id);
+        if (it == data_.end())
+        {
+            return 0;
+        }
+
+        return *(T*)(&it->second);
+    }
+
+    template <typename T>
+    void set(SIMCONNECT_DATA_DEFINITION_ID id, T value)
+    {
+        SimConnect_SetDataOnSimObject(handle_, id, SIMCONNECT_OBJECT_ID_USER, 0, 1, sizeof(T), &value);
+    }
+
     void onReceive(SIMCONNECT_RECV* data, DWORD length)
     {
-        LOG_DEBUG("RECV: %d", data->dwID);
-
         if (data->dwID == SIMCONNECT_RECV_ID_SIMOBJECT_DATA)
         {
             auto p = static_cast<SIMCONNECT_RECV_SIMOBJECT_DATA*>(data);
-            LOG_DEBUG("RECV SIMOBJECT DATA: DEF=%d");
-            for (int i = 0; i < p->dwDefineCount; ++i)
+
+            auto it = data_.find(p->dwDefineID);
+            if (it == data_.end())
             {
-                LOG_DEBUG(" [%d] %.1f", i, *(double*)(&p->dwData));
+                data_.emplace(p->dwDefineID, 0);
             }
+
+            data_[p->dwDefineID] = *(double*)(&p->dwData);
         }
     }
 };

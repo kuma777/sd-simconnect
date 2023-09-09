@@ -90,11 +90,67 @@ main(int argc, const char* argv[])
     const ImColor Orange(ImVec4(1.0, 0.5, 0.0, 1.0));
     const ImColor DarkGreen(ImVec4(0.0, 1.0, 0.0, 0.5));
 
+    double heading = 0.0;
+    double altitude = 0;
+
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
 
         sim.poll();
+
+        {
+            int d = deck.getTick(StreamDeck::ACTION_HEADING);
+            if (d != 0)
+            {
+                sim.set<double>(SimConnect::DEF_AP_HEADING_VALUE, heading + d);
+            }
+
+            double v = sim.get<double>(SimConnect::DEF_AP_HEADING_VALUE);
+            if (heading != v)
+            {
+                LOG_DEBUG("Heading changed: %.1f -> %.1f", heading, v);
+
+                nlohmann::json root{
+                    { "event", "setFeedback" },
+                    { "payload", {
+                        { "title", "HDG" },
+                        { "value", std::to_string((int)v) },
+                    } }
+                };
+
+                if (deck.send(StreamDeck::ACTION_HEADING, root))
+                {
+                    heading = v;
+                }
+            }
+        }
+        {
+            int d = deck.getTick(StreamDeck::ACTION_ALTITUDE);
+            if (d != 0)
+            {
+                sim.set<double>(SimConnect::DEF_AP_ALTITUDE_VALUE, altitude + d * 1000);
+            }
+
+            double v = sim.get<double>(SimConnect::DEF_AP_ALTITUDE_VALUE);
+            if (altitude != v)
+            {
+                LOG_DEBUG("Altitude changed: %.1f -> %.1f", altitude, v);
+
+                nlohmann::json root{
+                    { "event", "setFeedback" },
+                    { "payload", {
+                        { "title", "ALT" },
+                        { "value", std::to_string((int)v) },
+                    } }
+                };
+
+                if (deck.send(StreamDeck::ACTION_ALTITUDE, root))
+                {
+                    altitude = v;
+                }
+            }
+        }
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
